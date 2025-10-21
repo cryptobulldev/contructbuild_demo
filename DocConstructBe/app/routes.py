@@ -2,7 +2,9 @@ import os
 import tempfile
 from data_model.enum import DocumentStatus
 from flask import send_file, request
+from flask_jwt_extended import jwt_required
 
+from app.auth import AuthManager
 from app.errors import ValidationError, InvalidProjectProfessionalDocument
 from app.api import (
     ProjectManager,
@@ -68,8 +70,55 @@ def validate_request(endpoint):
 
 
 def init_routes(app):
+    @app.route('/api/auth/register', methods=['POST'])
+    def register():
+        data = validate_request(endpoint=Endpoints.REGISTER)
+        access_token, refresh_token, user = AuthManager.register(
+            email=data.get('email'),
+            password=data.get('password'),
+            name=data.get('name')
+        )
+        return SuccessResponse({
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'name': user.name
+            }
+        }).generate_response()
+
+    @app.route('/api/auth/login', methods=['POST'])
+    def login():
+        data = validate_request(endpoint=Endpoints.LOGIN)
+        access_token, refresh_token, user = AuthManager.login(
+            email=data.get('email'),
+            password=data.get('password')
+        )
+        return SuccessResponse({
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'name': user.name
+            }
+        }).generate_response()
+
+    @app.route('/api/auth/refresh', methods=['POST'])
+    @jwt_required(refresh=True)
+    def refresh():
+        validate_request(endpoint=Endpoints.REFRESH)
+        return AuthManager.refresh()
+
+    @app.route('/api/auth/logout', methods=['POST'])
+    @jwt_required()
+    def logout():
+        validate_request(endpoint=Endpoints.LOGOUT)
+        return AuthManager.logout()
 
     @app.route('/api/projects', methods=['GET'])
+    @jwt_required()
     def get_projects():
         validate_request(endpoint=Endpoints.GET_PROJECTS)
         projects = ProjectManager().get_all()
@@ -101,6 +150,7 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/project', methods=['GET'])
+    @jwt_required()
     def get_project():
         data = validate_request(endpoint=Endpoints.GET_PROJECT)
         project = ProjectManager().get_by_id(project_id=str(data.get('project_id')))
@@ -147,6 +197,7 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/project', methods=['POST'])
+    @jwt_required()
     def create_project():
         data = validate_request(endpoint=Endpoints.CREATE_PROJECT)
         project = ProjectManager().create(
@@ -159,6 +210,7 @@ def init_routes(app):
         return SuccessResponse({'id': str(project.id)}).generate_response()
 
     @app.route('/api/project', methods=['PUT'])
+    @jwt_required()
     def update_project():
         data = validate_request(endpoint=Endpoints.UPDATE_PROJECT)
         
@@ -177,12 +229,14 @@ def init_routes(app):
         return SuccessResponse().generate_response()
 
     @app.route('/api/project', methods=['DELETE'])
+    @jwt_required()
     def delete_project():
         data = validate_request(endpoint=Endpoints.DELETE_PROJECT)
         ProjectManager().delete(project_id=str(data.get('project_id')))
         return SuccessResponse().generate_response()
 
     @app.route('/api/project/statuses', methods=['GET'])
+    @jwt_required()
     def get_project_statuses():
         validate_request(endpoint=Endpoints.GET_PROJECT_STATUSES)
         return SuccessResponse({
@@ -190,6 +244,7 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/project/professionals', methods=['POST'])
+    @jwt_required()
     def add_professional_to_project():
         data = validate_request(Endpoints.ADD_PROJECT_PROFESSIONAL)
         project_professional = ProjectManager().attach_professional(
@@ -203,6 +258,7 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/project/professionals', methods=['DELETE'])
+    @jwt_required()
     def remove_professional_from_project():
         data = validate_request(Endpoints.REMOVE_PROJECT_PROFESSIONAL)
         ProjectManager().detach_professional(
@@ -212,6 +268,7 @@ def init_routes(app):
         return SuccessResponse().generate_response()
 
     @app.route('/api/project/document', methods=['GET'])
+    @jwt_required()
     def download_project_document():
         data = validate_request(endpoint=Endpoints.DOWNLOAD_PROJECT_DOCUMENT)
         project_document = ProjectManager().get_document(
@@ -225,6 +282,7 @@ def init_routes(app):
         )
 
     @app.route('/api/project/document', methods=['POST'])
+    @jwt_required()
     def upload_project_document():
         data = validate_request(endpoint=Endpoints.UPLOAD_PROJECT_DOCUMENT)
         project_id = str(data.get('project_id'))
@@ -267,6 +325,7 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/project/document', methods=['DELETE'])
+    @jwt_required()
     def delete_project_document():
         data = validate_request(endpoint=Endpoints.REMOVE_PROJECT_DOCUMENT)
         ProjectManager().remove_document(
@@ -277,6 +336,7 @@ def init_routes(app):
         return SuccessResponse().generate_response()
 
     @app.route('/api/project/document', methods=['PUT'])
+    @jwt_required()
     def update_project_document():
         data = validate_request(endpoint=Endpoints.UPDATE_PROJECT_DOCUMENT)
         project_id = str(data.get('project_id'))
@@ -327,12 +387,14 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/project/document/types', methods=['GET'])
+    @jwt_required()
     def get_project_document_types():
         return SuccessResponse({
             'document_types': ProjectManager().get_document_types()
         }).generate_response()
 
     @app.route('/api/project/document/statuses', methods=['GET'])
+    @jwt_required()
     def get_project_document_statuses():
         return SuccessResponse({
             'document_statuses': ProjectManager().get_document_statuses()
@@ -340,6 +402,7 @@ def init_routes(app):
 
     ### Professionals ###
     @app.route('/api/professionals', methods=['GET'])
+    @jwt_required()
     def get_professionals():
         validate_request(endpoint=Endpoints.GET_PROFESSIONALS)
         professionals = ProfessionalManager.get_all()
@@ -355,6 +418,7 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/professional', methods=['GET'])
+    @jwt_required()
     def get_professional():
         data = validate_request(endpoint=Endpoints.GET_PROFESSIONAL)
         professional = ProfessionalManager.get_by_id(professional_id=str(data.get('professional_id')))
@@ -382,6 +446,7 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/professional', methods=['POST'])
+    @jwt_required()
     def create_professional():
         data = validate_request(endpoint=Endpoints.CREATE_PROFESSIONAL)
         # Create the professional
@@ -400,6 +465,7 @@ def init_routes(app):
         return SuccessResponse({'id': professional.id}).generate_response()
 
     @app.route('/api/professional/import', methods=['POST'])
+    @jwt_required()
     def import_professional_data():
         logger.info(f"Importing professional data")
         data = validate_request(endpoint=Endpoints.IMPORT_PROFESSIONAL_FILE)
@@ -418,6 +484,7 @@ def init_routes(app):
         return SuccessResponse(license_data).generate_response()
 
     @app.route('/api/professional', methods=['PUT'])
+    @jwt_required()
     def update_professional():
         data = validate_request(endpoint=Endpoints.UPDATE_PROFESSIONAL)
         ProfessionalManager().update(
@@ -434,22 +501,26 @@ def init_routes(app):
         return SuccessResponse().generate_response()
 
     @app.route('/api/professional', methods=['DELETE'])
+    @jwt_required()
     def delete_professional():
         data = validate_request(endpoint=Endpoints.DELETE_PROFESSIONAL)
         ProfessionalManager().delete(professional_id=str(data.get('professional_id')))
         return SuccessResponse().generate_response()
 
     @app.route('/api/professional/types', methods=['GET'])
+    @jwt_required()
     def get_professional_types():
         validate_request(endpoint=Endpoints.GET_PROFESSIONAL_TYPES)
         return SuccessResponse({'types': ProfessionalManager().get_types()}).generate_response()
 
     @app.route('/api/professional/statuses', methods=['GET'])
+    @jwt_required()
     def get_professional_statuses():
         validate_request(endpoint=Endpoints.GET_PROFESSIONAL_STATUSES)
         return SuccessResponse({'statuses': ProfessionalManager().get_statuses()}).generate_response()
 
     @app.route('/api/professional/document', methods=['GET'])
+    @jwt_required()
     def download_professional_document():
         data = validate_request(endpoint=Endpoints.DOWNLOAD_PROFESSIONAL_DOCUMENT)
         professional_document = ProfessionalManager().get_document(
@@ -463,6 +534,7 @@ def init_routes(app):
         )
 
     @app.route('/api/professional/document', methods=['POST'])
+    @jwt_required()
     def add_professional_document():
         data = validate_request(endpoint=Endpoints.ADD_PROFESSIONAL_DOCUMENT)
         file_path = save_file_to_temp(data.get('file'))
@@ -478,6 +550,7 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/professional/document', methods=['DELETE'])
+    @jwt_required()
     def remove_professional_document():
         data = validate_request(endpoint=Endpoints.REMOVE_PROFESSIONAL_DOCUMENT)
         ProfessionalManager().remove_document(
@@ -487,6 +560,7 @@ def init_routes(app):
         return SuccessResponse().generate_response()
 
     @app.route('/api/professional/document/types', methods=['GET'])
+    @jwt_required()
     def get_professional_document_types():
         validate_request(endpoint=Endpoints.GET_PROFESSIONAL_DOCUMENT_TYPES)
         return SuccessResponse({
@@ -495,6 +569,7 @@ def init_routes(app):
 
     # Project Team routes
     @app.route('/api/project/teams', methods=['GET'])
+    @jwt_required()
     def get_project_teams():
         data = validate_request(endpoint=Endpoints.GET_PROJECT_TEAM)
         project_id = str(data.get('project_id'))
@@ -517,6 +592,7 @@ def init_routes(app):
         }).generate_response()
 
     @app.route('/api/project/teams', methods=['POST'])
+    @jwt_required()
     def create_project_team():
         data = validate_request(endpoint=Endpoints.CREATE_PROJECT_TEAM)
         team = ProjectTeamManager.create(
@@ -531,6 +607,7 @@ def init_routes(app):
         return SuccessResponse({'id': str(team.id)}).generate_response()
 
     @app.route('/api/project/teams', methods=['PUT'])
+    @jwt_required()
     def update_project_team():
         data = validate_request(endpoint=Endpoints.UPDATE_PROJECT_TEAM)
         team = ProjectTeamManager.update(
@@ -545,12 +622,14 @@ def init_routes(app):
         return SuccessResponse({'id': str(team.id)}).generate_response()
 
     @app.route('/api/project/teams', methods=['DELETE'])
+    @jwt_required()
     def delete_project_team():
         data = validate_request(endpoint=Endpoints.DELETE_PROJECT_TEAM)
         ProjectTeamManager.delete(team_id=str(data.get('id')))
         return SuccessResponse().generate_response()
 
     @app.route('/api/project/team/roles', methods=['GET'])
+    @jwt_required()
     def get_project_team_roles():
         from data_model.enum import ProjectTeamRole
         roles = [{

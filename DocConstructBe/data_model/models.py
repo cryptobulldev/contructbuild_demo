@@ -1,9 +1,10 @@
 from datetime import date, datetime, UTC
 import re
-from sqlalchemy import Column, String, Date, ForeignKey, UniqueConstraint, DateTime, Enum as SqlEnum
+from sqlalchemy import Column, String, Date, ForeignKey, UniqueConstraint, DateTime, Boolean, Enum as SqlEnum
 from sqlalchemy.orm import relationship
-import enum
+from werkzeug.security import generate_password_hash, check_password_hash
 
+import enum
 from app.errors import ValidationError
 from database.base_model import Base
 from database.database import engine
@@ -172,6 +173,52 @@ class ProjectTeamMember(Base):
 
     def __repr__(self):
         return f"<ProjectTeamMember(name='{self.name}', role='{self.role}', address='{self.address}', phone='{self.phone}', email='{self.email}')>"
+
+class User(Base):
+    __tablename__ = 'users'
+    id = Column(UUID_F(), primary_key=True, default=UUID_F.uuid_allocator, unique=True, nullable=False)
+    email = Column(String(120), unique=True, nullable=False)
+    password = Column(String(255), nullable=False)
+    name = Column(String(80), nullable=False)
+    active = Column(Boolean(), default=True)
+    created_at = Column(DateTime, default=datetime.now(UTC), nullable=False)
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC), nullable=False)
+    last_login = Column(DateTime, default=datetime.now(UTC), nullable=False)
+
+    def __init__(self, email: str, password: str, name: str, active: bool = True):
+        super().__init__()
+        self.email = email
+        self.password = password
+        self.name = name
+
+    def set_password(self, password: str) -> None:
+        """Set user's password"""
+        self.password = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        """Check if provided password matches user's password"""
+        return check_password_hash(self.password, password)
+
+    def update_last_login(self) -> None:
+        """Update user's last login timestamp"""
+        self.last_login = datetime.now(UTC)
+        db.session.commit()
+
+    @classmethod
+    def get_by_email(cls, email: str) -> 'User':
+        """Get user by email"""
+        return cls.query.filter_by(email=email).first()
+
+    def to_dict(self) -> dict:
+        """Convert user object to dictionary"""
+        return {
+            'id': str(self.id),
+            'email': self.email,
+            'name': self.name,
+            'active': self.active,
+            'created_at': self.created_at.isoformat(),
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
 
 
 def init_tables():

@@ -107,6 +107,18 @@ def handle_error(error: Exception):
     return error_response
 
 
+# User errors
+class UserAlreadyExists(ApiError):
+    def __init__(self):
+        super().__init__(
+            msg='User already exists',
+            code='user_already_exists'
+        )
+
+    def http_code(self):
+        return HttpCodes.BAD_REQUEST
+
+
 # Project errors
 
 class ProjectDoesNotExist(ApiError):

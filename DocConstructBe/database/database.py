@@ -21,6 +21,22 @@ def get_db_conn_string():
         
     return f'postgresql://{user}:{password}@{host}:{port}/{db_name}'
 
+def create_db_engine():
+    """Create SQLAlchemy engine with appropriate config for SQLite vs PostgreSQL"""
+    conn_string = get_db_conn_string()
+    if conn_string.startswith('sqlite:'):
+        # SQLite engine without pooling settings
+        return create_engine(conn_string, echo=False)
+    else:
+        # PostgreSQL engine with connection pooling
+        return create_engine(
+            conn_string,
+            echo=False,
+            pool_pre_ping=True,
+            pool_size=200,
+            max_overflow=0
+        )
+
 
 @contextmanager
 def session_scope(engine):
@@ -36,13 +52,7 @@ def session_scope(engine):
         session.close()
 
 
-engine = create_engine(
-    get_db_conn_string(),
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=200,
-    max_overflow=0
-)
+engine = create_db_engine()
 
 
 db_session = scoped_session(
