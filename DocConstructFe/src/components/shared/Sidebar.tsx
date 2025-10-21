@@ -1,9 +1,15 @@
 import React, {useEffect, useState} from 'react';
 import { useRouter } from 'next/router';
-import styled from 'styled-components';
-import {FaBars} from 'react-icons/fa';
 import Link from 'next/link';
-import {FaBuilding, FaUserTie} from "react-icons/fa";
+import styled from 'styled-components';
+import {
+  FaBars,
+  FaBuilding,
+  FaSignOutAlt,
+  FaUserTie
+} from 'react-icons/fa';
+
+import { useAuth } from '../../contexts/AuthContext';
 
 const SidebarContainer = styled.div<{ isCollapsed: boolean }>`
   width: ${props => props.isCollapsed ? '60px' : '250px'};
@@ -85,6 +91,7 @@ const ToggleButton = styled.button`
 
 const Sidebar: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const { logout, isAuthenticated } = useAuth();
 
   useEffect(() => {
     const stored = localStorage.getItem('sidebarCollapsed');
@@ -132,6 +139,20 @@ const Sidebar: React.FC = () => {
             ))}
           </div>
         </SidebarGroup>
+      </SidebarGroup>
+      <SidebarGroup>
+        {isAuthenticated && (
+          <div style={{marginBottom: '30px', marginLeft: '10px', marginRight: '10px'}}>
+            <SidebarItemHolder isActive={false} onClick={async () => { await logout(); router.push('/auth'); }}>
+              <SidebarItemIcon>
+                <FaSignOutAlt />
+              </SidebarItemIcon>
+                <SidebarItemLabel isCollapsed={isCollapsed} isActive={false}>
+                  התנתק
+              </SidebarItemLabel>
+            </SidebarItemHolder>
+          </div>
+        )}
       </SidebarGroup>
     </SidebarContainer>
   );
