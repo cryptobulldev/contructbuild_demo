@@ -1,10 +1,23 @@
 import os
 import yaml
 import logging
+from datetime import timedelta
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# JWT Configuration
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'd44046fb08d6fc89b1dd683a57af77cb0ec454c76253445d4d1017489a33ffc8')
+JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+JWT_TOKEN_LOCATION = ['headers']
+JWT_ACCESS_COOKIE_NAME = 'access_token_cookie'
+JWT_REFRESH_COOKIE_NAME = 'refresh_token_cookie'
+JWT_COOKIE_SECURE = os.getenv('ENVIRONMENT', 'development') == 'production'
+JWT_COOKIE_CSRF_PROTECT = True
+JWT_ACCESS_CSRF_HEADER_NAME = "X-CSRF-TOKEN"
+JWT_CSRF_IN_COOKIES = True
 
 # Set up base application path using environment variables with a default value
 #APP_PATH = "/home/ubuntu/doc-construct/"
