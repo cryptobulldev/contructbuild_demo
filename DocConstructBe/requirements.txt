@@ -35,3 +35,4 @@ pdfminer.six
 reportlab
 pdfplumber
 python-bidi
+pytest==8.4.2
