@@ -290,7 +290,7 @@ const ProjectView: React.FC = () => {
         errorHandler(error as ErrorResponseData, 'Failed to load professionals');
         setProfessionals([]);
       } finally {
-        setIsLoadingProfessionals(false);
+    setIsLoadingProfessionals(false);
       }
 
       // Load project documents
@@ -394,14 +394,14 @@ const ProjectView: React.FC = () => {
   const confirmRemoveProfessional = async () => {
     if (!professionalToRemove || !id) return;
     setProfessionalToRemove(null);
-    try {
+      try {
       const professional_id = professionalToRemove.id.toString()
       await removeProfessionalFromProject({
         project_id: id,
         professional_id: professional_id
       });
       await loadData()
-      toast.success('Professional removed from project');
+        toast.success('הבעל מקצוע הוסר מהפרויקט');
     } catch (error) {
       errorHandler(error as ErrorResponseData, 'Failed to remove professional from project');
     }
@@ -431,7 +431,7 @@ const ProjectView: React.FC = () => {
   const saveChanges = async () => {
     if (!formData) return;
     setSaving(true);
-    try {
+      try {
       // Send updated data to the backend
       await updateProject(formData);
 
@@ -458,7 +458,7 @@ const ProjectView: React.FC = () => {
           }));
           setProfessionals(projectProfessionals);
         }
-      } catch (error) {
+        } catch (error) {
         errorHandler(error as ErrorResponseData, 'Failed to reload project data');
         // If we can't reload, at least update the local state with what we have
         setFormData(formData);
@@ -466,7 +466,7 @@ const ProjectView: React.FC = () => {
       }
 
       setIsEditingDetails(false);
-      toast.success('Changes saved')
+      toast.success('השינויים נשמרו')
     } catch (error) {
       errorHandler(error as ErrorResponseData, 'Failed to save changes');
     } finally {
@@ -560,7 +560,7 @@ const ProjectView: React.FC = () => {
       await loadData();
       toast.success(`${fileType} uploaded successfully with status: ${status}`);
     } catch (error) {
-      console.error("File upload error details:", error);
+    console.error("File upload error details:", error);
       errorHandler(error as ErrorResponseData, `Failed to upload ${fileType}`);
     }
   };
@@ -580,7 +580,7 @@ const ProjectView: React.FC = () => {
       await autoFillDocument(id, fileId, documentType, file);
       await loadData();
       toast.success('Document auto-filled successfully');
-    } catch (error) {
+      } catch (error) {
       console.error("Auto fill error details:", error);
       errorHandler(error as ErrorResponseData, 'Failed to auto-fill document');
     } finally {
@@ -719,7 +719,7 @@ const ProjectView: React.FC = () => {
       await uploadProjectDocument(id, 'כללי', fileName, file, DocumentState.GENERAL);
       await loadData();
       toast.success('File uploaded successfully');
-    } catch (error) {
+      } catch (error) {
       console.error("File upload error:", error); 
       errorHandler(error as ErrorResponseData, 'Failed to upload file');
     }
@@ -730,7 +730,7 @@ const ProjectView: React.FC = () => {
     const uploadedDocs = documents.filter(doc => doc.id);
     
     if (uploadedDocs.length === 0) {
-      toast.info('No files to download');
+      toast.info('אין קבצים להורדה');
       return;
     }
     
@@ -743,13 +743,13 @@ const ProjectView: React.FC = () => {
       }
     }
     
-    toast.success(`Downloading ${uploadedDocs.length} files`);
+    toast.success(`הורדו ${uploadedDocs.length} קבצים`);
   };
 
   const handleEmailAllFiles = () => {
     // Would implement email functionality here
     // This would typically open a dialog to enter email address
-    toast.info('Email all files feature would be implemented here');
+    toast.info('תכונת שליחת כל הקבצים במייל תיושם כאן');
   };
 
   // Render icons directly
