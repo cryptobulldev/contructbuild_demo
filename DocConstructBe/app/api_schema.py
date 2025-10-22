@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields, validate
 from data_model.enum import ProjectDocumentType, ProfessionalDocumentType, ProfessionalType, ProjectStatus, ProjectTeamRole
+from app.auth_schema import LoginSchema, RegisterSchema, RefreshSchema, LogoutSchema
 
 # Project Schemas
 
@@ -205,6 +206,12 @@ class ProjectTeamGetSchema(Schema):
 
 
 class Endpoints:
+    # Auth endpoints
+    LOGIN = "login"
+    REGISTER = "register"
+    REFRESH = "refresh"
+    LOGOUT = "logout"
+    
     GET_PROJECTS = "get_projects"
     GET_PROJECT = "get_project"
     CREATE_PROJECT = "create_project"
@@ -243,6 +250,26 @@ class Endpoints:
 
 
 API_ENDPOINTS = {
+    Endpoints.LOGIN: {
+        'method': 'POST',
+        'schema': LoginSchema,
+        'description': 'Login user'
+    },
+    Endpoints.REGISTER: {
+        'method': 'POST',
+        'schema': RegisterSchema,
+        'description': 'Register new user'
+    },
+    Endpoints.REFRESH: {
+        'method': 'POST',
+        'schema': RefreshSchema,
+        'description': 'Refresh access token'
+    },
+    Endpoints.LOGOUT: {
+        'method': 'POST',
+        'schema': LogoutSchema,
+        'description': 'Logout user'
+    },
     Endpoints.GET_PROJECTS: {
         'method': 'GET',
         'schema': ProjectGetAllSchema,
