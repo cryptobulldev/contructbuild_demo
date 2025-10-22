@@ -36,7 +36,7 @@ const ProjectProfessionalDialog: React.FC<ProjectProfessionalDialogProps> = ({
   useEffect(() => {
     const fetchProfessionals = async () => {
       try {
-        const data = await getProfessionals();
+          const data = await getProfessionals();
         // Filter out professionals that are already attached to the project
         const availableProfessionals = data.filter(
           prof => !existingProfessionalIds.includes(prof.id)
@@ -93,13 +93,13 @@ const ProjectProfessionalDialog: React.FC<ProjectProfessionalDialogProps> = ({
         </DialogHeader>
         <Form onSubmit={handleSubmit}>
           {isLoading ? (
-            <p>Loading professionals...</p>
-          ) : professionals.length === 0 ? (
-            <p>No available professionals to add</p>
+                <p>טוען בעלי מקצוע...</p>
+              ) : professionals.length === 0 ? (
+                <p>אין בעלי מקצוע זמינים להוספה</p>
           ) : (
             <>
               <FullWidthField style={{ margin: '20px 0' }}>
-                <Label htmlFor="professional_id">Select Professional</Label>
+                <Label htmlFor="professional_id">בחר בעל מקצוע</Label>
                 <Select
                   id="professional_id"
                   value={selectedProfessionalId}
@@ -114,7 +114,7 @@ const ProjectProfessionalDialog: React.FC<ProjectProfessionalDialogProps> = ({
                 </Select>
               </FullWidthField>
               <DialogActions>
-                <Button variant='text' onClick={onClose}>Cancel</Button>
+                <Button variant='text' onClick={onClose}>בטל</Button>
                 <Button 
                   variant='contained' 
                   type="submit" 

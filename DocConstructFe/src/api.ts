@@ -1,45 +1,131 @@
-import axios from 'axios';
-import {Professional, Project, ProjectCreationFormData, DocumentState} from "./types";
-import {ProfessionalCreationFormData} from "./components/professionals/ProfessionalCreationDialog";
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { AuthResponse, LoginCredentials, RefreshResponse, RegisterCredentials } from './types/auth';
+import { Professional, Project, ProjectCreationFormData, DocumentState } from "./types";
+import { ProfessionalCreationFormData } from "./components/professionals/ProfessionalCreationDialog";
 
 // Use the direct API URL from environment variables if available
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5001/api';
 
+// Create axios instance with default config
+const api: AxiosInstance = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add request interceptor to add auth token
+api.interceptors.request.use(
+  (config: AxiosRequestConfig) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (accessToken && config.headers) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If error is 401 and we haven't tried to refresh token yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        // Try to refresh the token
+        const response = await axios.post<RefreshResponse>(
+          `${API_URL}/auth/refresh`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${refreshToken}`,
+            },
+          }
+        );
+
+        const { access_token } = response.data;
+        localStorage.setItem('accessToken', access_token);
+
+        // Retry the original request with new token
+        originalRequest.headers.Authorization = `Bearer ${access_token}`;
+        return axios(originalRequest);
+      } catch (refreshError) {
+        // If refresh fails, clear auth state and redirect to login
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/auth';
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Auth API
+export const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
+  const response = await api.post('/auth/login', credentials);
+  return response.data;
+};
+
+export const register = async (credentials: RegisterCredentials): Promise<AuthResponse> => {
+  const response = await api.post('/auth/register', credentials);
+  return response.data;
+};
+
+export const logout = async () => {
+  const response = await api.post('/auth/logout');
+  return response.data;
+};
+
+export const refreshToken = async (token: string) => {
+  const response = await api.post('/auth/refresh', {},
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  return response.data;
+};
+
 // Projects API
 export const getProjects = async (): Promise<Project[]> => {
-  const response = await axios.get(
-    `${API_URL}/projects`,
-  );
+  const response = await api.get('/projects');
   return response.data.projects
 };
 
 export const getProjectById = async (projectId: string): Promise<Project> => {
-  const response = await axios.get(
-    `${API_URL}/project`,
-    {
-      params: {
-        project_id: projectId
-      }
+  const response = await api.get('/project', {
+    params: {
+      project_id: projectId
     }
-  );
+  });
   return response.data.project;
 };
 
 export const createProject = async (data: ProjectCreationFormData): Promise<Project> => {
-  const response = await axios.post(
-    `${API_URL}/project`,
-    data
-  );
+  const response = await api.post('/project', data);
   return response.data;
 };
 
 export const updateProject = async (data: Project): Promise<Project> => {
   const { documents, professionals, team_members, ...rest } = data; // exclude 'documents', 'professionals', and 'team_members'
-  
-  const response = await axios.put(
-    `${API_URL}/project`,
-    rest
-  );
+
+  const response = await api.put('/project', rest);
   return response.data;
 };
 
@@ -49,8 +135,8 @@ export const deleteProject = async (id: string) => {
   // This means the project_id should be sent as a URL parameter
   console.log(`Starting deleteProject API call with ID: ${id}`);
   try {
-    const response = await axios.delete(
-      `${API_URL}/project`,
+    const response = await api.delete(
+      '/project',
       {
         params: { project_id: id }
       }
@@ -64,52 +150,39 @@ export const deleteProject = async (id: string) => {
 };
 
 export const getProjectStatuses = async (): Promise<string[]> => {
-  const response = await axios.get(
-    `${API_URL}/project/statuses`
-  );
+  const response = await api.get('/project/statuses');
   return response.data.statuses;
 }
 
 // Professionals API
 export const getProfessionals = async (): Promise<Professional[]> => {
-  const response = await axios.get(
-    `${API_URL}/professionals`
-  );
+  const response = await api.get('/professionals');
   return response.data.professionals;
 };
 
 export const getProfessionalById = async (professional_id: string): Promise<Professional> => {
-  const response = await axios.get(
-    `${API_URL}/professional`,
-    {
-      params: {
-        professional_id
-      }
+  const response = await api.get('/professional', {
+    params: {
+      professional_id
     }
-  );
+  });
   return response.data.professional;
 };
 
 export const createProfessional = async (data: ProfessionalCreationFormData): Promise<Professional> => {
-  const response = await axios.post(
-    `${API_URL}/professional`,
-    data
-  );
+  const response = await api.post('/professional', data);
   return response.data;
 };
 
 export const updateProfessional = async (data: Professional): Promise<Professional> => {
   const { documents, ...rest } = data; // exclude 'documents'
-  const response = await axios.put(
-    `${API_URL}/professional`,
-    rest,
-  );
+  const response = await api.put('/professional', rest);
   return response.data;
 };
 
-export const deleteProfessional = async (professionalId: string ): Promise<null> => {
-  const response = await axios.delete(
-    `${API_URL}/professional`,
+export const deleteProfessional = async (professionalId: string): Promise<null> => {
+  const response = await api.delete(
+    '/professional',
     {
       params: {
         professional_id: professionalId
@@ -120,17 +193,13 @@ export const deleteProfessional = async (professionalId: string ): Promise<null>
 };
 
 export async function getProfessionalTypes(): Promise<string[]> {
-  const response = await axios.get(
-    `${API_URL}/professional/types`
-  );
+  const response = await api.get('/professional/types');
   return response.data.types;
 }
 
 export async function getProfessionalStatuses(): Promise<string[]> {
-  const response = await axios.get(
-    `${API_URL}/professional/statuses`
-  );
-  return response.data.statuses
+  const response = await api.get('/professional/statuses');
+  return response.data.statuses;
 }
 
 // Project-Professional Relationship API
@@ -138,10 +207,7 @@ export const addProfessionalToProject = async (data: {
   project_id: string;
   professional_id: string;
 }) => {
-  const response = await axios.post(
-    `${API_URL}/project/professionals`,
-    data
-  );
+  const response = await api.post('/project/professionals', data);
   return response.data;
 };
 
@@ -149,14 +215,8 @@ export const removeProfessionalFromProject = async (data: {
   project_id: string;
   professional_id: string;
 }) => {
-
-    const response = await axios.delete(
-      `${API_URL}/project/professionals`,
-      {
-        data,
-      }
-    );
-    return response.data;
+  const response = await api.delete('/project/professionals', { data });
+  return response.data;
 };
 
 export const uploadProfessionalDocument = async (
@@ -171,21 +231,17 @@ export const uploadProfessionalDocument = async (
   formData.append('document_name', documentName);
   formData.append('file', file);
 
-  const response = await axios.post(
-    `${API_URL}/professional/document`,
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+  const response = await api.post('/professional/document', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
     }
-  );
+  });
   return response.data;
 };
 
 export const downloadProfessionalDocument = async (professionalId: string, documentId: string) => {
-  const response = await axios.get(
-    `${API_URL}/professional/document`,
+  const response = await api.get(
+    '/professional/document',
     {
       params: {
         professional_id: professionalId,
@@ -198,8 +254,8 @@ export const downloadProfessionalDocument = async (professionalId: string, docum
 };
 
 export const deleteProfessionalDocument = async (professionalId: string, documentId: string) => {
-  const response = await axios.delete(
-    `${API_URL}/professional/document`,
+  const response = await api.delete(
+    '/professional/document',
     {
       params: {
         professional_id: professionalId,
@@ -211,9 +267,7 @@ export const deleteProfessionalDocument = async (professionalId: string, documen
 };
 
 export const getProfessionalDocumentTypes = async (): Promise<string[]> => {
-  const response = await axios.get(
-    `${API_URL}/professional/document/types`
-  );
+  const response = await api.get('/professional/document/types');
   console.log(response.data.document_types);
   return response.data.document_types;
 };
@@ -222,8 +276,8 @@ export const importProfessionalData = async (file: File): Promise<ProfessionalCr
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await axios.post(
-    `${API_URL}/professional/import`,
+  const response = await api.post(
+    '/professional/import',
     formData,
     {
       headers: {
@@ -248,14 +302,14 @@ export const uploadProjectDocument = async (
   formData.append('document_type', documentType);
   formData.append('document_name', documentName);
   formData.append('file', file);
-  
+
   // Send the status directly from the DocumentState enum
   formData.append('status', status);
   if (mode) {
     formData.append('mode', mode);
   }
-  const response = await axios.post(
-    `${API_URL}/project/document`,
+  const response = await api.post(
+    '/project/document',
     formData,
     {
       headers: {
@@ -267,8 +321,8 @@ export const uploadProjectDocument = async (
 };
 
 export const downloadProjectDocument = async (projectId: string, documentId: string) => {
-  const response = await axios.get(
-    `${API_URL}/project/document`,
+  const response = await api.get(
+    '/project/document',
     {
       params: {
         project_id: projectId,
@@ -281,8 +335,8 @@ export const downloadProjectDocument = async (projectId: string, documentId: str
 };
 
 export const deleteProjectDocument = async (projectId: string, documentId: string, status: string) => {
-  const response = await axios.delete(
-    `${API_URL}/project/document`,
+  const response = await api.delete(
+    '/project/document',
     {
       params: {
         project_id: projectId,
@@ -295,34 +349,32 @@ export const deleteProjectDocument = async (projectId: string, documentId: strin
 };
 
 export const getProjectDocumentTypes = async (): Promise<string[]> => {
-  const response = await axios.get(
-    `${API_URL}/project/document/types`
-  );
+  const response = await api.get('/project/document/types');
   return response.data.document_types;
 };
 
 export const getProjectTeamRoles = async (): Promise<{ value: string; name: string }[]> => {
-  const response = await axios.get(`${API_URL}/project/team/roles`);
+  const response = await api.get('/project/team/roles');
   return response.data.roles;
 };
 
 export const getProjectTeamMembers = async (projectId: string) => {
-  const response = await axios.get(`${API_URL}/project/teams`, { params: { project_id: projectId } });
+  const response = await api.get('/project/teams', { params: { project_id: projectId } });
   return response.data.teams;
 };
 
 export const createProjectTeamMember = async (data: any) => {
-  const response = await axios.post(`${API_URL}/project/teams`, data);
+  const response = await api.post('/project/teams', data);
   return response.data;
 };
 
 export const updateProjectTeamMember = async (data: any) => {
-  const response = await axios.put(`${API_URL}/project/teams`, data);
+  const response = await api.put('/project/teams', data);
   return response.data;
 };
 
 export const deleteProjectTeamMember = async (id: string) => {
-  const response = await axios.delete(`${API_URL}/project/teams`, { data: { id } });
+  const response = await api.delete('/project/teams', { data: { id } });
   return response.data;
 };
 
@@ -338,8 +390,8 @@ export const autoFillDocument = async (
   formData.append('document_id', documentId);
   formData.append('document_type', documentType);
   formData.append('file', file);
-  
-  const response = await axios.put(`${API_URL}/project/document`, formData, {
+
+  const response = await api.put('/project/document', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }

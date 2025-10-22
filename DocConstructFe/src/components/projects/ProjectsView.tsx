@@ -1,8 +1,9 @@
 import React, {useEffect, useState} from 'react';
-import { getProjects } from '../../api';
 import styled from 'styled-components';
 import { useRouter } from 'next/router';
 import { FaPlus, FaExclamationTriangle, FaTh, FaList } from 'react-icons/fa';
+
+import { getProjects } from '../../api';
 import {
   TopPanel,
   TopPanelLogo,
@@ -18,7 +19,9 @@ import {
   CardInfo,
   Table,
   TableHeader,
-  TableBody
+  TableBody,
+  Input,
+  Select
 } from '../../styles/SharedStyles';
 import { Project, ProjectStatus, ProfessionalStatus, ProjectTeamRole, DocumentState } from "../../types";
 import EmptyStatePlaceholder from "../shared/EmptyState";
@@ -29,22 +32,45 @@ type ViewMode = 'cards' | 'table';
 
 const Projects: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [showProjectCreationDialog, setShowProjectCreationDialog] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const router = useRouter();
 
   const fetchProjects = async () => {
     try {
       const data = await getProjects();
       setProjects(data);
+      setFilteredProjects(data);
     } catch (error) {
-      errorHandler(error as ErrorResponseData, 'Failed to load projects');
+      errorHandler(error as ErrorResponseData, 'טעינת הפרויקטים נכשלה');
     }
   };
 
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    let result = projects;
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(p => (
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.permit_number && p.permit_number.toLowerCase().includes(q)) ||
+        (p.team_members && p.team_members.some(m => m.name && m.name.toLowerCase().includes(q)))
+      ));
+    }
+
+    if (statusFilter !== 'all') {
+      result = result.filter(p => p.status === statusFilter);
+    }
+
+    setFilteredProjects(result);
+  }, [projects, search, statusFilter]);
 
   const handleProjectClick = async (projectId: string) => {
     await router.push(`/projects/${projectId}`);
@@ -94,7 +120,7 @@ const Projects: React.FC = () => {
 
   const renderCardView = () => (
     <CardGrid>
-      {projects.map((project) => (
+      {filteredProjects.map((project) => (
         <Card
           key={project.id}
           onClick={() => handleProjectClick(project.id)}
@@ -113,7 +139,9 @@ const Projects: React.FC = () => {
             </WarningBadge>
           )}
           <CardName><b>{project.name}</b></CardName>
+          {project.description && <CardInfo>{project.description.length > 160 ? project.description.slice(0,160) + '...' : project.description}</CardInfo>}
           <CardInfo><b>בעל היתר:</b> {project.team_members?.find(member => member.role === ProjectTeamRole.PERMIT_OWNER)?.name || 'לא זמין'}</CardInfo>
+          <CardInfo><b>צוות:</b> {project.professionals ? project.professionals.length : (project.team_members ? project.team_members.length : 0)}</CardInfo>
           <CardInfo><b>מספר היתר:</b> {project.permit_number || 'לא זמין'}</CardInfo>
           <DocumentStatusBar project={project} />
         </Card>
@@ -133,7 +161,7 @@ const Projects: React.FC = () => {
         </tr>
       </thead>
       <tbody>
-        {projects.map((project) => (
+        {filteredProjects.map((project) => (
           <tr 
             key={project.id} 
             onClick={() => handleProjectClick(project.id)}
@@ -228,30 +256,44 @@ const Projects: React.FC = () => {
         </TopPanelGroup>
       </TopPanel>
       <PageContent style={{ flexDirection: 'column' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1 }}>
+            <Input placeholder="חפש פרויקטים, מספר היתר או בעל היתר" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">הכל</option>
+              <option value={ProjectStatus.PRE_PERMIT}>קדם היתר</option>
+              <option value={ProjectStatus.POST_PERMIT}>אחרי היתר</option>
+              <option value={ProjectStatus.FINAL}>הושלם</option>
+            </Select>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <h2 style={{ margin: 0, color: '#4b6b8e' }}>פרויקטים ({filteredProjects.length})</h2>
+            <button
+              onClick={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
+              title={viewMode === 'cards' ? 'עבור לתצוגת טבלה' : 'עבור לתצוגת כרטיסים'}
+              style={{
+                background: 'transparent',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '6px 8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {viewMode === 'cards' ? <FaList /> : <FaTh />}
+            </button>
+          </div>
+        </div>
+
         {projects.length === 0 ? (
-          <EmptyStatePlaceholder msg='No projects available' />
+          <EmptyStatePlaceholder msg='אין פרויקטים זמינים' />
+        ) : filteredProjects.length === 0 ? (
+          <EmptyStatePlaceholder msg='לא נמצאו פרויקטים לפי החיפוש' />
         ) : (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0, color: '#4b6b8e' }}>פרויקטים ({projects.length})</h2>
-              <button
-                onClick={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
-                title={viewMode === 'cards' ? 'עבור לתצוגת טבלה' : 'עבור לתצוגת כרטיסים'}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  padding: '6px 8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                {viewMode === 'cards' ? <FaList /> : <FaTh />}
-              </button>
-            </div>
             {viewMode === 'cards' ? renderCardView() : renderTableView()}
           </>
         )}
