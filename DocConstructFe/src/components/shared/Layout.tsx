@@ -1,6 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
+
 import Sidebar from "./Sidebar";
+import { useAuth } from '../../contexts/AuthContext';
 
 const LayoutContainer = styled.div`
   display: flex;
@@ -16,9 +18,11 @@ const MainContent = styled.div`
 
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+
   return (
     <LayoutContainer>
-      <Sidebar />
+      {isAuthenticated && <Sidebar />}
       <MainContent>
         {children}
       </MainContent>
